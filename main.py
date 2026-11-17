@@ -52,18 +52,26 @@ def value(b,s):
   if not p or i&136:continue
   q=abs(p);r=i//16 if p>0 else 7-i//16;f=i%16
   center=7-abs(2*f-7)-abs(2*(i//16)-7)
-  z+=(1 if p>0 else -1)*(V[q]+(center*6 if q in (2,3) else r*9 if q==1 else 0))
+  activity=center*6 if q in (2,3) else r*9 if q==1 else 0
+  if q==6:
+   activity=-center*4-r*8 if sum(abs(v)==5 for v in b)>0 else center*5
+  z+=(1 if p>0 else -1)*(V[q]+activity)
  return z*s
 nodes=0
 def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
  if nodes>18000:raise OverflowError
- if d<=0:return value(b,s)
+ if d<=0:
+  stand=value(b,s)
+  if d<=-3:return stand
+  if stand>=z:return stand
+  a=max(a,stand)
  ms=list(moves(b,s,ep))
  if not ms:return -19000+ply if attacked(b,b.index(s*6),-s) else 0
  ms.sort(key=lambda t:V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])],reverse=True)
  for m,c,e in ms:
+  if d<=0 and not b[m[1]] and not m[2]:continue
   v=-search(c,-s,e,d-1,-z,-a,ply+1)
   if v>=z:return v
   a=max(a,v)
@@ -80,7 +88,7 @@ def choose(fen,legal):
    else:b[(7-r)*16+x]=(' PNBRQK'.index(c.upper()))*(1 if c.isupper() else -1);x+=1
  s=1 if f[1]=='w' else -1;ep=square(f[3]) if f[3]!='-' else -1
  best=legal[0];nodes=0
- for depth in (1,2,3):
+ for depth in (1,2,3,4):
   scores=[]
   try:
    for u in sorted(legal,key=lambda u:(u!=best,u)):
