@@ -50,18 +50,19 @@ def moves(b,s,ep,captures=False):
    if not attacked(c,c.index(s*6),-s):yield m,c,e
 
 def value(b,s):
- z=0
+ z=0;queens=5 in b or -5 in b
  for i,p in enumerate(b):
   if not p or i&136:continue
   q=abs(p);r=i//16 if p>0 else 7-i//16;f=i%16
   center=7-abs(2*f-7)-abs(2*(i//16)-7)
   activity=center*6 if q in (2,3) else r*9 if q==1 else 0
   if q==6:
-   activity=-center*4-r*8 if sum(abs(v)==5 for v in b)>0 else center*5
+   activity=-center*4-r*8 if queens else center*5
   z+=(1 if p>0 else -1)*(V[q]+activity)
  return z*s
 nodes=0
 TT={}
+PV={}
 def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
@@ -78,10 +79,11 @@ def search(b,s,ep,d,a,z,ply=0):
  ms=list(moves(b,s,ep,d<=0 and not check))
  if d<=0 and not ms and not check:return a
  if not ms:return -19000+ply if check else 0
- ms.sort(key=lambda t:V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])],reverse=True)
+ ms.sort(key=lambda t:(t[0]==PV.get(key[:-1]),V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])]),reverse=True)
  for m,c,e in ms:
   v=-search(c,-s,e,d-1,-z,-a,ply+1)
-  if v>=z:return v
+  if v>=z:PV[key[:-1]]=m;return v
+  if v>a:PV[key[:-1]]=m
   a=max(a,v)
  if a>old:TT[key]=a
  return a
@@ -90,6 +92,7 @@ def square(t):return ord(t[0])-97+(int(t[1])-1)*16
 def choose(fen,legal):
  global nodes
  TT.clear()
+ PV.clear()
  f=fen.split();b=[0]*128
  for r,row in enumerate(f[0].split('/')):
   x=0
@@ -98,7 +101,7 @@ def choose(fen,legal):
    else:b[(7-r)*16+x]=(' PNBRQK'.index(c.upper()))*(1 if c.isupper() else -1);x+=1
  s=1 if f[1]=='w' else -1;ep=square(f[3]) if f[3]!='-' else -1
  best=legal[0];nodes=0
- for depth in (1,2,3,4):
+ for depth in (1,2,3,4,5):
   alpha=-30000;winner=best
   try:
    for u in sorted(legal,key=lambda u:(u!=best,u)):
