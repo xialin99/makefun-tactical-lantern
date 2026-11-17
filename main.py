@@ -65,7 +65,7 @@ TT={}
 def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
- if nodes>15000:raise OverflowError
+ if nodes>40000:raise OverflowError
  key=(tuple(b),s,ep,d);old=a
  if key in TT:return TT[key]
  check=attacked(b,b.index(s*6),-s)
@@ -99,14 +99,14 @@ def choose(fen,legal):
  s=1 if f[1]=='w' else -1;ep=square(f[3]) if f[3]!='-' else -1
  best=legal[0];nodes=0
  for depth in (1,2,3,4):
-  scores=[]
+  alpha=-30000;winner=best
   try:
    for u in sorted(legal,key=lambda u:(u!=best,u)):
     m=(square(u[:2]),square(u[2:4]),s*' PNBRQK'.index(u[4].upper()) if len(u)>4 else 0)
-    c,e=make(b,m,s,ep);v=-search(c,-s,e,depth-1,-30000,30000)
-    scores.append((v,u))
+    c,e=make(b,m,s,ep);v=-search(c,-s,e,depth-1,-30000,-alpha)
+    if v>alpha:alpha=v;winner=u
   except OverflowError:break
-  best=max(scores)[1]
+  best=winner
  return best
 
 def post(path,data):
