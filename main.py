@@ -1,0 +1,99 @@
+import os,json,urllib.request
+V={1:100,2:320,3:335,4:500,5:950,6:20000}
+D={2:(-33,-31,-18,-14,14,18,31,33),3:(-17,-15,15,17),4:(-16,-1,1,16),5:(-17,-16,-15,-1,1,15,16,17),6:(-17,-16,-15,-1,1,15,16,17)}
+def attacked(b,t,s):
+ for i,p in enumerate(b):
+  if i&136 or p*s<=0:continue
+  q=abs(p)
+  if q==1:
+   if t in (i+s*16-1,i+s*16+1):return True
+  else:
+   for d in D[q]:
+    j=i+d
+    while not j&136:
+     if j==t:return True
+     if b[j] or q in (2,6):break
+     j+=d
+ return False
+def make(b,m,s,ep):
+ i,j,p=m;c=b.copy();v=c[i];c[i]=0;c[j]=p or v
+ if abs(v)==1 and j==ep and not b[j]:c[j-s*16]=0
+ if abs(v)==6 and abs(j-i)==2:
+  r=i+3 if j>i else i-4;c[(i+j)//2]=c[r];c[r]=0
+ return c,(i+j)//2 if abs(v)==1 and abs(i-j)==32 else -1
+def moves(b,s,ep):
+ for i,v in enumerate(b):
+  if i&136 or v*s<=0:continue
+  q=abs(v);out=[]
+  if q==1:
+   j=i+s*16
+   if not j&136 and not b[j]:
+    out.append(j)
+    k=j+s*16
+    if i//16==(1 if s==1 else 6) and not b[k]:out.append(k)
+   for j in (i+s*16-1,i+s*16+1):
+    if not j&136 and (b[j]*s<0 or j==ep):out.append(j)
+  else:
+   for d in D[q]:
+    j=i+d
+    while not j&136:
+     if b[j]*s>0:break
+     out.append(j)
+     if b[j] or q in (2,6):break
+     j+=d
+  for j in out:
+   m=(i,j,s*5 if q==1 and j//16 in (0,7) else 0)
+   c,e=make(b,m,s,ep)
+   if not attacked(c,c.index(s*6),-s):yield m,c,e
+
+def value(b,s):
+ z=0
+ for i,p in enumerate(b):
+  if not p or i&136:continue
+  q=abs(p);r=i//16 if p>0 else 7-i//16;f=i%16
+  center=7-abs(2*f-7)-abs(2*(i//16)-7)
+  z+=(1 if p>0 else -1)*(V[q]+(center*6 if q in (2,3) else r*9 if q==1 else 0))
+ return z*s
+nodes=0
+def search(b,s,ep,d,a,z,ply=0):
+ global nodes
+ nodes+=1
+ if d<=0 or nodes>9000:return value(b,s)
+ ms=list(moves(b,s,ep))
+ if not ms:return -19000+ply if attacked(b,b.index(s*6),-s) else 0
+ ms.sort(key=lambda t:V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])],reverse=True)
+ for m,c,e in ms:
+  v=-search(c,-s,e,d-1,-z,-a,ply+1)
+  if v>=z:return v
+  a=max(a,v)
+ return a
+
+def square(t):return ord(t[0])-97+(int(t[1])-1)*16
+def choose(fen,legal):
+ global nodes
+ f=fen.split();b=[0]*128
+ for r,row in enumerate(f[0].split('/')):
+  x=0
+  for c in row:
+   if c.isdigit():x+=int(c)
+   else:b[(7-r)*16+x]=(' PNBRQK'.index(c.upper()))*(1 if c.isupper() else -1);x+=1
+ s=1 if f[1]=='w' else -1;ep=square(f[3]) if f[3]!='-' else -1
+ best=legal[0];nodes=0
+ for depth in (1,2,3):
+  scores=[]
+  for u in sorted(legal,key=lambda u:(u!=best,u)):
+   m=(square(u[:2]),square(u[2:4]),s*' PNBRQK'.index(u[4].upper()) if len(u)>4 else 0)
+   c,e=make(b,m,s,ep);v=-search(c,-s,e,depth-1,-30000,30000)
+   scores.append((v,u))
+  best=max(scores)[1]
+  if nodes>9000:break
+ return best
+
+def post(path,data):
+ req=urllib.request.Request(os.environ['MAKEFUN_ENV_URL']+path,json.dumps(data).encode(),{'Content-Type':'application/json'})
+ return json.load(urllib.request.urlopen(req))
+if __name__=='__main__':
+ while True:
+  g=post('/game',{})
+  if g['status']=='done':break
+  while g['status']=='your_move':g=post('/move',{'game':g['game'],'move':choose(g['fen'],g['legal_moves'])})
