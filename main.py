@@ -61,10 +61,13 @@ def value(b,s):
   z+=(1 if p>0 else -1)*(V[q]+activity)
  return z*s
 nodes=0
+TT={}
 def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
- if nodes>7000:raise OverflowError
+ if nodes>15000:raise OverflowError
+ key=(tuple(b),s,ep,d);old=a
+ if key in TT:return TT[key]
  check=attacked(b,b.index(s*6),-s)
  if d<=0:
   stand=value(b,s)
@@ -80,11 +83,13 @@ def search(b,s,ep,d,a,z,ply=0):
   v=-search(c,-s,e,d-1,-z,-a,ply+1)
   if v>=z:return v
   a=max(a,v)
+ if a>old:TT[key]=a
  return a
 
 def square(t):return ord(t[0])-97+(int(t[1])-1)*16
 def choose(fen,legal):
  global nodes
+ TT.clear()
  f=fen.split();b=[0]*128
  for r,row in enumerate(f[0].split('/')):
   x=0
