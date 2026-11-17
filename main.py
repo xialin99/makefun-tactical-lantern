@@ -58,7 +58,8 @@ nodes=0
 def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
- if d<=0 or nodes>9000:return value(b,s)
+ if nodes>18000:raise OverflowError
+ if d<=0:return value(b,s)
  ms=list(moves(b,s,ep))
  if not ms:return -19000+ply if attacked(b,b.index(s*6),-s) else 0
  ms.sort(key=lambda t:V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])],reverse=True)
@@ -81,12 +82,13 @@ def choose(fen,legal):
  best=legal[0];nodes=0
  for depth in (1,2,3):
   scores=[]
-  for u in sorted(legal,key=lambda u:(u!=best,u)):
-   m=(square(u[:2]),square(u[2:4]),s*' PNBRQK'.index(u[4].upper()) if len(u)>4 else 0)
-   c,e=make(b,m,s,ep);v=-search(c,-s,e,depth-1,-30000,30000)
-   scores.append((v,u))
+  try:
+   for u in sorted(legal,key=lambda u:(u!=best,u)):
+    m=(square(u[:2]),square(u[2:4]),s*' PNBRQK'.index(u[4].upper()) if len(u)>4 else 0)
+    c,e=make(b,m,s,ep);v=-search(c,-s,e,depth-1,-30000,30000)
+    scores.append((v,u))
+  except OverflowError:break
   best=max(scores)[1]
-  if nodes>9000:break
  return best
 
 def post(path,data):
