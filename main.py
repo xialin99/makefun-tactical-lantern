@@ -2,18 +2,20 @@ import os,json,urllib.request
 V={1:100,2:320,3:335,4:500,5:950,6:20000}
 D={2:(-33,-31,-18,-14,14,18,31,33),3:(-17,-15,15,17),4:(-16,-1,1,16),5:(-17,-16,-15,-1,1,15,16,17),6:(-17,-16,-15,-1,1,15,16,17)}
 def attacked(b,t,s):
- for i,p in enumerate(b):
-  if i&136 or p*s<=0:continue
-  q=abs(p)
-  if q==1:
-   if t in (i+s*16-1,i+s*16+1):return True
-  else:
-   for d in D[q]:
-    j=i+d
-    while not j&136:
-     if j==t:return True
-     if b[j] or q in (2,6):break
-     j+=d
+ for d in (-1,1):
+  i=t-s*16+d
+  if not i&136 and b[i]==s:return True
+ for d in D[2]:
+  i=t+d
+  if not i&136 and b[i]==s*2:return True
+ for d in D[5]:
+  i=t+d;n=1
+  while not i&136:
+   p=b[i]
+   if p:
+    if p*s>0 and (abs(p)==5 or abs(p)==(4 if d in D[4] else 3) or abs(p)==6 and n==1):return True
+    break
+   i+=d;n+=1
  return False
 def make(b,m,s,ep):
  i,j,p=m;c=b.copy();v=c[i];c[i]=0;c[j]=p or v
@@ -21,7 +23,7 @@ def make(b,m,s,ep):
  if abs(v)==6 and abs(j-i)==2:
   r=i+3 if j>i else i-4;c[(i+j)//2]=c[r];c[r]=0
  return c,(i+j)//2 if abs(v)==1 and abs(i-j)==32 else -1
-def moves(b,s,ep):
+def moves(b,s,ep,captures=False):
  for i,v in enumerate(b):
   if i&136 or v*s<=0:continue
   q=abs(v);out=[]
@@ -42,6 +44,7 @@ def moves(b,s,ep):
      if b[j] or q in (2,6):break
      j+=d
   for j in out:
+   if captures and not b[j] and j!=ep and not(q==1 and j//16 in (0,7)):continue
    m=(i,j,s*5 if q==1 and j//16 in (0,7) else 0)
    c,e=make(b,m,s,ep)
    if not attacked(c,c.index(s*6),-s):yield m,c,e
@@ -61,13 +64,14 @@ nodes=0
 def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
- if nodes>18000:raise OverflowError
+ if nodes>7000:raise OverflowError
  if d<=0:
   stand=value(b,s)
   if d<=-3:return stand
   if stand>=z:return stand
   a=max(a,stand)
- ms=list(moves(b,s,ep))
+ ms=list(moves(b,s,ep,d<=0))
+ if d<=0 and not ms:return a
  if not ms:return -19000+ply if attacked(b,b.index(s*6),-s) else 0
  ms.sort(key=lambda t:V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])],reverse=True)
  for m,c,e in ms:
