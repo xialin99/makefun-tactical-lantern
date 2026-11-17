@@ -65,17 +65,18 @@ def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
  if nodes>7000:raise OverflowError
+ check=attacked(b,b.index(s*6),-s)
  if d<=0:
   stand=value(b,s)
   if d<=-3:return stand
-  if stand>=z:return stand
-  a=max(a,stand)
- ms=list(moves(b,s,ep,d<=0))
- if d<=0 and not ms:return a
- if not ms:return -19000+ply if attacked(b,b.index(s*6),-s) else 0
+  if not check:
+   if stand>=z:return stand
+   a=max(a,stand)
+ ms=list(moves(b,s,ep,d<=0 and not check))
+ if d<=0 and not ms and not check:return a
+ if not ms:return -19000+ply if check else 0
  ms.sort(key=lambda t:V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])],reverse=True)
  for m,c,e in ms:
-  if d<=0 and not b[m[1]] and not m[2]:continue
   v=-search(c,-s,e,d-1,-z,-a,ply+1)
   if v>=z:return v
   a=max(a,v)
