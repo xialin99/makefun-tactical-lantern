@@ -45,9 +45,11 @@ def moves(b,s,ep,captures=False):
      j+=d
   for j in out:
    if captures and not b[j] and j!=ep and not(q==1 and j//16 in (0,7)):continue
-   m=(i,j,s*5 if q==1 and j//16 in (0,7) else 0)
-   c,e=make(b,m,s,ep)
-   if not attacked(c,c.index(s*6),-s):yield m,c,e
+   promotions=(5,4,3,2) if q==1 and j//16 in (0,7) else (0,)
+   for piece in promotions:
+    m=(i,j,s*piece)
+    c,e=make(b,m,s,ep)
+    if not attacked(c,c.index(s*6),-s):yield m,c,e
 
 def value(b,s):
  z=0;queens=5 in b or -5 in b
