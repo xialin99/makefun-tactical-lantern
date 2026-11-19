@@ -1,4 +1,4 @@
-import os,json,urllib.request
+import os,json,urllib.request,time
 V={1:100,2:320,3:335,4:500,5:950,6:20000}
 D={2:(-33,-31,-18,-14,14,18,31,33),3:(-17,-15,15,17),4:(-16,-1,1,16),5:(-17,-16,-15,-1,1,15,16,17),6:(-17,-16,-15,-1,1,15,16,17)}
 def attacked(b,t,s):
@@ -63,12 +63,13 @@ def value(b,s):
   z+=(1 if p>0 else -1)*(V[q]+activity)
  return z*s
 nodes=0
+deadline=float("inf")
 TT={}
 PV={}
 def search(b,s,ep,d,a,z,ply=0):
  global nodes
  nodes+=1
- if nodes>40000:raise OverflowError
+ if nodes>100000 or (nodes%256==0 and time.monotonic()>=deadline):raise OverflowError
  key=(tuple(b),s,ep,d);old=a
  if key in TT:return TT[key]
  check=attacked(b,b.index(s*6),-s)
@@ -92,7 +93,8 @@ def search(b,s,ep,d,a,z,ply=0):
 
 def square(t):return ord(t[0])-97+(int(t[1])-1)*16
 def choose(fen,legal):
- global nodes
+ global nodes,deadline
+ deadline=time.monotonic()+2.4
  TT.clear()
  PV.clear()
  f=fen.split();b=[0]*128
@@ -110,7 +112,10 @@ def choose(fen,legal):
     m=(square(u[:2]),square(u[2:4]),s*' PNBRQK'.index(u[4].upper()) if len(u)>4 else 0)
     c,e=make(b,m,s,ep);v=-search(c,-s,e,depth-1,-30000,-alpha)
     if v>alpha:alpha=v;winner=u
-  except OverflowError:break
+  except OverflowError:
+   # The previous best was searched first. Keep any completed improvement.
+   best=winner
+   break
   best=winner
  return best
 
