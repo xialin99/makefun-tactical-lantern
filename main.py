@@ -1,129 +1,2 @@
-import os,json,urllib.request,time
-V={1:100,2:320,3:335,4:500,5:950,6:20000}
-D={2:(-33,-31,-18,-14,14,18,31,33),3:(-17,-15,15,17),4:(-16,-1,1,16),5:(-17,-16,-15,-1,1,15,16,17),6:(-17,-16,-15,-1,1,15,16,17)}
-def attacked(b,t,s):
- for d in (-1,1):
-  i=t-s*16+d
-  if not i&136 and b[i]==s:return True
- for d in D[2]:
-  i=t+d
-  if not i&136 and b[i]==s*2:return True
- for d in D[5]:
-  i=t+d;n=1
-  while not i&136:
-   p=b[i]
-   if p:
-    if p*s>0 and (abs(p)==5 or abs(p)==(4 if d in D[4] else 3) or abs(p)==6 and n==1):return True
-    break
-   i+=d;n+=1
- return False
-def make(b,m,s,ep):
- i,j,p=m;c=b.copy();v=c[i];c[i]=0;c[j]=p or v
- if abs(v)==1 and j==ep and not b[j]:c[j-s*16]=0
- if abs(v)==6 and abs(j-i)==2:
-  r=i+3 if j>i else i-4;c[(i+j)//2]=c[r];c[r]=0
- return c,(i+j)//2 if abs(v)==1 and abs(i-j)==32 else -1
-def moves(b,s,ep,captures=False):
- for i,v in enumerate(b):
-  if i&136 or v*s<=0:continue
-  q=abs(v);out=[]
-  if q==1:
-   j=i+s*16
-   if not j&136 and not b[j]:
-    out.append(j)
-    k=j+s*16
-    if i//16==(1 if s==1 else 6) and not b[k]:out.append(k)
-   for j in (i+s*16-1,i+s*16+1):
-    if not j&136 and (b[j]*s<0 or j==ep):out.append(j)
-  else:
-   for d in D[q]:
-    j=i+d
-    while not j&136:
-     if b[j]*s>0:break
-     out.append(j)
-     if b[j] or q in (2,6):break
-     j+=d
-  for j in out:
-   if captures and not b[j] and j!=ep and not(q==1 and j//16 in (0,7)):continue
-   promotions=(5,4,3,2) if q==1 and j//16 in (0,7) else (0,)
-   for piece in promotions:
-    m=(i,j,s*piece)
-    c,e=make(b,m,s,ep)
-    if not attacked(c,c.index(s*6),-s):yield m,c,e
-
-def value(b,s):
- z=0;queens=5 in b or -5 in b
- for i,p in enumerate(b):
-  if not p or i&136:continue
-  q=abs(p);r=i//16 if p>0 else 7-i//16;f=i%16
-  center=7-abs(2*f-7)-abs(2*(i//16)-7)
-  activity=center*6 if q in (2,3) else r*9 if q==1 else 0
-  if q==6:
-   activity=-center*4-r*8 if queens else center*5
-  z+=(1 if p>0 else -1)*(V[q]+activity)
- return z*s
-nodes=0
-deadline=float("inf")
-TT={}
-PV={}
-def search(b,s,ep,d,a,z,ply=0):
- global nodes
- nodes+=1
- if nodes>100000 or (nodes%256==0 and time.monotonic()>=deadline):raise OverflowError
- key=(tuple(b),s,ep,d);old=a
- if key in TT:return TT[key]
- check=attacked(b,b.index(s*6),-s)
- if d<=0:
-  stand=value(b,s)
-  if d<=-3:return stand
-  if not check:
-   if stand>=z:return stand
-   a=max(a,stand)
- ms=list(moves(b,s,ep,d<=0 and not check))
- if d<=0 and not ms and not check:return a
- if not ms:return -19000+ply if check else 0
- ms.sort(key=lambda t:(t[0]==PV.get(key[:-1]),V.get(abs(b[t[0][1]]),0)*10-V[abs(b[t[0][0]])]),reverse=True)
- for m,c,e in ms:
-  v=-search(c,-s,e,d-1,-z,-a,ply+1)
-  if v>=z:PV[key[:-1]]=m;return v
-  if v>a:PV[key[:-1]]=m
-  a=max(a,v)
- if a>old:TT[key]=a
- return a
-
-def square(t):return ord(t[0])-97+(int(t[1])-1)*16
-def choose(fen,legal):
- global nodes,deadline
- deadline=time.monotonic()+2.4
- TT.clear()
- PV.clear()
- f=fen.split();b=[0]*128
- for r,row in enumerate(f[0].split('/')):
-  x=0
-  for c in row:
-   if c.isdigit():x+=int(c)
-   else:b[(7-r)*16+x]=(' PNBRQK'.index(c.upper()))*(1 if c.isupper() else -1);x+=1
- s=1 if f[1]=='w' else -1;ep=square(f[3]) if f[3]!='-' else -1
- best=legal[0];nodes=0
- for depth in (1,2,3,4,5):
-  alpha=-30000;winner=best
-  try:
-   for u in sorted(legal,key=lambda u:(u!=best,u)):
-    m=(square(u[:2]),square(u[2:4]),s*' PNBRQK'.index(u[4].upper()) if len(u)>4 else 0)
-    c,e=make(b,m,s,ep);v=-search(c,-s,e,depth-1,-30000,-alpha)
-    if v>alpha:alpha=v;winner=u
-  except OverflowError:
-   # The previous best was searched first. Keep any completed improvement.
-   best=winner
-   break
-  best=winner
- return best
-
-def post(path,data):
- req=urllib.request.Request(os.environ['MAKEFUN_ENV_URL']+path,json.dumps(data).encode(),{'Content-Type':'application/json'})
- return json.load(urllib.request.urlopen(req))
-if __name__=='__main__':
- while True:
-  g=post('/game',{})
-  if g['status']=='done':break
-  while g['status']=='your_move':g=post('/move',{'game':g['game'],'move':choose(g['fen'],g['legal_moves'])})
+#coding:l1
+import lzma;exec(lzma.decompress('\0\0\0?\0\0\0\0\0\0\x004œ%Å¯^´Íô© á¥MJ	F­X!FÛÌy¿\'x;²I²è…îÊbDô#e±D½®mØ%Ôı•-N©Ù½dp»O"ßN$,¸—önC9_•O­ŠdÀyz}¨ˆ~Mt\'x[mÉ¸ÙĞ<ÍÛtÒiLî(1i3=\'AO%Ù_=&=£Í\\[]cÖşVğĞwµq#,¯€Ò=ğø›ŒO&å/ÿ;}¾\n®ì¡Ïp×ÍSG3ƒ İéú{]êÑO%/ÅˆÊÅ[Õ–pıj(Ï1™-ÈĞl=M¶Øh3Úkny€$ÓªĞLX ;+CîÎ\'“nïîâÑ¼•ºè~kÏU\0UcOX­Q%0$”™Ü·æ®o\rÄÃèyZ*èìï€«€Ì“D²QÉLecÏ²B«›=œe`ú!¼/BOo=—…×µ—qOg‰Òo˜˜ 	Ä´zÿÌÍDî|M•%M‹8š¡7:Ë‰\0‘H:àÏ«sn—óÛ%XÓµ²áš¼Œº‘ˆÑ‚Ì÷½Lß2rNÁ$–ÅòÒ÷µÅåÎû7˜öy¥.ifšv8aÀìšÿ‚yŠkÀ-s9Ò\r¼LóÉ£äé*¡­y#ˆ\n÷(Øæ&<4=í •ŠfÜ>	v@ÏOäƒˆI½u\nä—m’&}fg«VIF ÏÿÚ‡–íöÈ\\ÃCÊÍ<ä£ÒÍHÿ…Ø/¬ı0n&ïBÊÖe¶z&×ñğ[“J†cñ˜·ÇEÕ|õÊúéŒ%©k*¯…Œ#F«ƒf8_!&E|Áã\0SíöĞ¡àŒRc–Ñ^\ræV›ìĞØÎ“Tíq˜Æ6»ª·–€<ÑšÌ”‡9Ï<HœI‚ïHä\'0qT†A¸—“<u½ØÔJÑX¦ÌRƒ.¯{K—f>uMùQû/ëå:>›Û#R´ÎWmipİ©§_+±ûµØ"5e¼b€+Cc*²¬İÕİÄ‘° £ËxŸV?Î~<ªNs„ğ+1|i¸œEDDHšTVdx.\\{:s-¡ßâ^ôeCt !pñ7›7FÇ¯m8‰Ûà%@5Åı´ê«¾\0õ@Ó‡Èømôˆü±$ ^r¨ËÉ‹s\\îbãŒdmüú7è:¤\'‡¨ß¥º¦ÑµĞr^¯1¹>‚Dì#²‹ªKùRoÎ Ì½Szä&x3èÅ)û °d²|<¶¢éM\\ ÎŞLï`ÃÜüF¦ü.P] Æ›åÓb¿…»ì):VZiCÚÑë2ŸWŠYæ1õkğÜÂùÊˆAî‘\\c%r\'/liºnaaWnî)qºêiçÃÎPè¾Ñ(mRRé˜\'F|n>\0ÔSğ™¨î¦ë^\'è;‚’ê¥PøíßDèQ0Çù?Í(›ibvq\nÍñ„3p/Şı®e¶›)óªmç´¯.)uõ“ÚDAõ°+Å2ˆŒ+Ï™¹B«û‚»º¸æËN‘fœÓA/LŠõÔ~ü§Çì(¡h†(‘Úíı°ìª¦õÅnÂê¹/Ø±×ï¶„¢=i×àylÍc\nèIH¬¡{Ş51³NKDZÇvöFWš~÷‚°å®îKš¨¥³{¿îá~ÑiÏ4×B1„9íÚ-Ğò(‹®õµ}âœö!şÎ¸ÓÆaaZ5=|ñ5ï˜­Z2”ÿªÉU·}B4_ù=37›şú Zê»ı,Âñçµ6-T°«5Àö¸Íï\'†%ÑJPpsšS\\½²÷Î€nÛ\\Ù+ıÒ\\a²¨«T¤áùÙ!X\n“Ã.o±×BuDÕÈ†öº%íeqË{Å r–rr÷¿ í3°Lï:pÆ¬\nşÇË” òò¿×½™LÑË„¹-üÁä‹–Şà½¯“]óÏcL‡e9>¯……‡Ó§¯o4[~r t7}¹ÜŒ^aÔ¿NìZ“D1†(ïø7€™ã şMÇô2C#]UûİÂ\\ô9]?Á#ŸáíÛŠ®ïÆmP\\9g$"’"—>İŸ6Î1Ê¦áĞš¢‰$íòP†`¡6@Ureİ¯{ö~½ liO¹)§QÒİ×¸¼\n¨n›_9ÙÍ’šè9¦âÌïãã‰™† ]±İ¬GõÏû­ÍKÏUW¹CÈ)ÙY\ríÃQ,¥²ùÿC‡¤#x^58äàÖ¨ü6¹›3Í¼gKwz³ŞÚºGv9nñF•ãï&¼)­Lœ‹×m{Zf“r3º³cò}@øB–S¸\'V¸Şh¾Îå0ñWL~o~M¥ÖcSıÂ·½Ë×/¡Xum”xE\0Ó°nà¾o¥4ğÉı½‰\\;xXìR9ÿDi›(gqùßO-Lº¡¡ÖÍ _*¾’°Ôl’t™Bì\n"zuŠÛT±¿ <)„çÑJ>[rUºyu8iè¸¶sîyv•²š5"tO::@<m^¿ìhf9n¦AM™ûnwPCÁL‰~ÕÂ­FVü´\njÉØóõ^~{ç!¡~5=hœ‚êt×‡Rgu¯ÿè\\Õmû›úòpQ”¢ÍU›‘-$ÔÈ°Aw	S_kgÿËçGÎƒŞïØÊ¯ø³\'Í\x0008+hlŞÂÉBı=\rã*vÓÏ´MOÛ)k¼œjB¦!(•D™.²¹1v‡‚ÄÊĞ^F]öHÔ±§‹z-‘J”ïLoT€ùã¥é«ÂÖ6ä¸ë#äU^oÃß€Í;Ï¯!î‚î1Q±˜]®ÖDgAC2.<>àû-¾‹£M¾Sş"íş£¨Ø‹á9+ããİ²ObË×‡¯}v›;×”af07@YHà(¥aÄO|WùL¿%kMW²BÒŠnd€õıZ4;h^„\rY(×SY{X(e†?µŸD±ÀHlgqôé½QË2YmÈ)Dˆ¬Î	OYƒÜ70Å•œª…t@ÛÌ.ïØ³®ó*»Ñ2>òsCÓwÙ&·ïÇàÉ+±ÂÕNóğgE¦uÎ #Xî‹Hï°…2:©J~>ô‡ä\'‘[‡'.encode('l1')))
