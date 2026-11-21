@@ -1,0 +1,4 @@
+from main import choose
+
+fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+print(choose(fen, ['e2e4', 'd2d4', 'g1f3', 'b1c3']))

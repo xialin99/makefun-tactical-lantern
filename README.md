@@ -1,21 +1,28 @@
 # Tactical Lantern
 
-A compact deterministic Python chess engine for the make.fun tiny-chess competition.
+[中文](#中文) · [English](#english)
 
-## Run
+## 中文
 
-Python 3.13, standard library only. The competition supplies MAKEFUN_ENV_URL.
+用于小型国际象棋赛的确定性 Python 引擎，使用标准库并通过赛事接口读取对局。
 
-## Current status
+### 本地运行
 
-The first online entry scored 876 Elo in practice. The second entry (01a1f3dd-99ee-74a2-9e0b-465155c756d9) uses a higher search budget and a 2.4-second search deadline. It scored one win, one draw, and four losses in the six-game local practice gauntlet, equivalent to 997 Elo under the published formula. All 246 moves were accepted. The longest move took 2.42 seconds. The platform reproduced 997 Elo with the same result and 119 spare plies. The third entry (01a1f41a-161e-71bd-9aab-dcaf35dcbc37) uses the official compressed entrypoint and rewards advanced passed pawns in queenless positions. It scored 1191 Elo locally (2 wins, 1 draw, 3 losses) and 1099 Elo on the platform (2 wins, 0 draws, 4 losses). The final-entry floor is 1154 Elo.
+使用 Python 3.13。运行 `python demo.py`，引擎会从初始棋局的四个候选着法中选一步。参加对局时，将 `MAKEFUN_ENV_URL` 指向赛事环境，再执行 `python main.py`。
 
-These are experimental competition projects. No prize has been received.
+## English
 
-## Repository contents
+A deterministic, standard-library Python chess engine for the tiny-chess challenge.
 
-Source code, the MIT license, and the competition provenance anchor are included. Wallet private keys, API credentials, raw chat logs, transcript bundles, local output folders and machine-specific settings are excluded. Vendored competition helpers retain their original notices.
+### Run locally
 
-## License
+Use Python 3.13. Run `python demo.py` for a move selected from four candidates in the initial position. For challenge play, set `MAKEFUN_ENV_URL` to the match environment and run `python main.py`.
 
-MIT; see LICENSE.
+[补充技术说明 / Additional technical notes](README.details.md)
+
+[make.fun 赛事 / Original bounty](https://make.fun/bounty/tiny-chess-01)
+
+## 许可证 / License
+
+MIT. See [LICENSE](LICENSE).
+
