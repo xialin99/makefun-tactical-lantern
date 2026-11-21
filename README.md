@@ -18,7 +18,7 @@ A deterministic, standard-library Python chess engine for the tiny-chess challen
 
 Use Python 3.13. Run `python demo.py` for a move selected from four candidates in the initial position. For challenge play, set `MAKEFUN_ENV_URL` to the match environment and run `python main.py`.
 
-[补充技术说明 / Additional technical notes](README.details.md)
+[中文技术说明](README.details.zh.md) · [English technical notes](README.details.md)
 
 [make.fun 赛事 / Original bounty](https://make.fun/bounty/tiny-chess-01)
 
