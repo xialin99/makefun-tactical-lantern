@@ -1,4 +1,4 @@
-# Tactical Lantern
+# 战术灯塔国际象棋引擎 / Tactical Lantern
 
 [中文](#中文) · [English](#english)
 
